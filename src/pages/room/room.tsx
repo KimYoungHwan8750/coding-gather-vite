@@ -4,8 +4,8 @@ import Canvas from "@/pages/room/canvas";
 import TextEditor from "@/pages/room/editor";
 import { EditorFeatureProvider } from "@/provider/editor-provider";
 import { SharingAreaProvider } from "@/provider/sharing-area-provider";
-
-export default function Home() {
+import A from "@shared/test"
+export default function Room() {
   return (
     <SharingAreaProvider>
       <EditorFeatureProvider>

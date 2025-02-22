@@ -11,7 +11,7 @@ type wsContextType = {
 const WsContext = createContext<wsContextType | null>(null);
 
 export const WebSocketProvider = ({children}: {children: ReactNode}) => {
-  const socket = io();
+  const socket = io("localhost/ws", {port: 80});
   const [isConnected, setIsConnected] = useState(false);
   const [transport, setTransport] = useState("N/A");
   const EditorFeature = useEditorFeature();
@@ -29,8 +29,10 @@ export const WebSocketProvider = ({children}: {children: ReactNode}) => {
       socket.io.engine.on("upgrade", (transport: any) => {
         setTransport(transport.name);
       });
-
-      socket.on("inputText", EditorFeature.onInputText.setPayload);
+      console.log("T_T")
+      socket.on("inputText", (data) => {
+        EditorFeature.onInputText.setPayload(data);
+      });
       socket.on("changeLanguage", EditorFeature.onChangeLanguage.setLanguage);
       socket.on("search", onResponseData);
     }

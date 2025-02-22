@@ -5,13 +5,15 @@ import { useWs } from "@/provider/websocket-provider";
 import { changeLanguageMessage, inputTextMessage } from "@/lib/ws-frame-generator";
 import { ParsedChangeLanguagePayload, ParsedInputTextPayload } from "@/constant/payload-type";
 import { Direction, Language } from "@/constant/constant";
+import { useEditorFeature } from "@/provider/editor-provider";
+import a from "@/sources.json";
 
 export default function TextEditor({direction}: {direction: Direction}) {
+  const editorFeature = useEditorFeature();
   const [language, setLanguage] = useState<Language | null>(null);
   const lowerCaseLanguage = language?.toLowerCase().replace(/\s/g, "");
   const ws = useWs();
   const [text, setText] = useState("");
-  const [payload, setPayload] = useState<string>("");
   /**
    * Language 설정 바꾸면 다른 유저들에게도 공유
    */
@@ -30,36 +32,17 @@ export default function TextEditor({direction}: {direction: Direction}) {
   };
 
   /**
-   * 웹소켓 메세지 핸들링
-   * inputText, changeLanguage 이벤트를 받아서 처리
-   */
-  useEffect(() => {
-    ws.socket.on("inputText", setPayload);
-    ws.socket.on("changeLanguage", (payload: string) => {
-      if(payload === "") return;
-      const parsedPayload: ParsedChangeLanguagePayload = JSON.parse(payload);
-      if(parsedPayload.direction === direction) {
-        setLanguage(parsedPayload.language);
-      }
-    });
-    return () => {
-      ws.socket.off("inputText");
-      ws.socket.off("changeLanguage");
-    }
-  });
-
-  /**
    * 다른 유저가 입력한 내용을 받아서 에디터에 반영
    */
   useEffect(() => {
-    if(payload === "") return;
-    const parsedPayload: ParsedInputTextPayload = JSON.parse(payload);
+    if(editorFeature.onInputText.payload === "") return;
+    const parsedPayload: ParsedInputTextPayload = JSON.parse(editorFeature.onInputText.payload);
     if(parsedPayload) {
       if(parsedPayload.direction === direction) {
         setText(parsedPayload.text);
       }
     }
-  }, [payload]);
+  }, [editorFeature.onInputText.payload]);
 
 
   return (
@@ -71,7 +54,7 @@ export default function TextEditor({direction}: {direction: Direction}) {
               <MenuTrigger>{language? language : "Plain Text"}</MenuTrigger>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Language</DropdownMenuLabel>
+              <DropdownMenuLabel>Language{a.ABC}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuRadioGroup onValueChange={(value: string) => changeLanguage(value as Language)}>
               <DropdownMenuRadioItem value="Plain Text">Plain Text</DropdownMenuRadioItem>
