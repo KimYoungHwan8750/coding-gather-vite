@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, ReactNode, useContext } from "react";
 import { useEditorFeature } from "./editor-provider";
-import { ParsedSearchPayload } from "@/constant/payload-type";
+import { ParsedSearchPayload } from "shared-coding-gather";
 import { useSharingArea } from "./sharing-area-provider";
 import { io, Socket } from "socket.io-client";
 
