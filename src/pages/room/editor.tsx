@@ -3,21 +3,20 @@ import Editor from "@monaco-editor/react";
 import { ReactNode, useEffect, useState } from "react";
 import { useWs } from "@/provider/websocket-provider";
 import { changeLanguageMessage, inputTextMessage } from "@/lib/ws-frame-generator";
-import { ParsedChangeLanguagePayload, ParsedInputTextPayload } from "@/constant/payload-type";
-import { Direction, Language } from "@/constant/constant";
+import { ChangeLanguagePayload, InputTextPayload, DirectionType, Language, LanguageType } from "shared-coding-gather";
 import { useEditorFeature } from "@/provider/editor-provider";
 import a from "@/sources.json";
 
-export default function TextEditor({direction}: {direction: Direction}) {
+export default function TextEditor({direction}: {direction: DirectionType}) {
   const editorFeature = useEditorFeature();
-  const [language, setLanguage] = useState<Language | null>(null);
+  const [language, setLanguage] = useState<LanguageType | null>(null);
   const lowerCaseLanguage = language?.toLowerCase().replace(/\s/g, "");
   const ws = useWs();
   const [text, setText] = useState("");
   /**
-   * Language 설정 바꾸면 다른 유저들에게도 공유
+   * TLanguageType 설정 바꾸면 다른 유저들에게도 공유
    */
-  const changeLanguage = (language: Language) => {
+  const changeLanguage = (language: LanguageType) => {
     setLanguage(language);
     ws.socket.emit("changeLanguage", changeLanguageMessage({ language, direction }));
   };
@@ -28,7 +27,7 @@ export default function TextEditor({direction}: {direction: Direction}) {
   const syncEditor = (text?: string) => {
     if(!text) text = "";
     setText(text);
-    ws.socket.emit("inputText", inputTextMessage({ text, direction }));
+    ws.socket.emit("inputText", text);
   };
 
   /**
@@ -36,7 +35,7 @@ export default function TextEditor({direction}: {direction: Direction}) {
    */
   useEffect(() => {
     if(editorFeature.onInputText.payload === "") return;
-    const parsedPayload: ParsedInputTextPayload = JSON.parse(editorFeature.onInputText.payload);
+    const payload: InputTextPayload = editorFeature.onInputText.payload;
     if(parsedPayload) {
       if(parsedPayload.direction === direction) {
         setText(parsedPayload.text);
@@ -56,7 +55,7 @@ export default function TextEditor({direction}: {direction: Direction}) {
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel>Language{a.ABC}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup onValueChange={(value: string) => changeLanguage(value as Language)}>
+              <DropdownMenuRadioGroup onValueChange={(value: string) => changeLanguage(value as LanguageType)}>
               <DropdownMenuRadioItem value="Plain Text">Plain Text</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="JavaScript">JavaScript</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="TypeScript">TypeScript</DropdownMenuRadioItem>
