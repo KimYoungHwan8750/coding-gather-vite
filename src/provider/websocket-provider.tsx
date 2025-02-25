@@ -1,21 +1,17 @@
-import { useState, useEffect, createContext, ReactNode, useContext } from "react";
-import { useEditorFeature } from "./editor-provider";
-import { ParsedSearchPayload } from "shared-coding-gather";
-import { useSharingArea } from "./sharing-area-provider";
-import { io, Socket } from "socket.io-client";
+import { setBinary } from "@/store/canvas-slice";
+import { setLanguage, setText } from "@/store/editors-slice";
+import { useState, useEffect, ReactNode } from "react";
+import { useDispatch } from "react-redux";
+import { AppConstant, ChangeLanguageResponse, InputTextResponse, SearchResponse } from "shared-coding-gather";
+import { io } from "socket.io-client";
+import { WsContext } from "./contexts/websocket-context";
 
-type wsContextType = {
-  socket: Socket;
-}
 
-const WsContext = createContext<wsContextType | null>(null);
 
 export const WebSocketProvider = ({children}: {children: ReactNode}) => {
   const socket = io("localhost/ws", {port: 80});
   const [isConnected, setIsConnected] = useState(false);
-  const [transport, setTransport] = useState("N/A");
-  const EditorFeature = useEditorFeature();
-  const SharingArea = useSharingArea();
+  const dispatch = useDispatch();
   useEffect(() => {
     if (socket.connected) {
       onConnect();
@@ -23,37 +19,29 @@ export const WebSocketProvider = ({children}: {children: ReactNode}) => {
 
     function onConnect() {
       setIsConnected(true);
-      setTransport(socket.io.engine.transport.name);
       console.log("connected");
 
-      socket.io.engine.on("upgrade", (transport: any) => {
-        setTransport(transport.name);
+      socket.on(AppConstant.websocketEvent.INPUT_TEXT, (payload: InputTextResponse) => {
+        console.log(payload);
+        dispatch(setText(payload));
       });
-      console.log("T_T")
-      socket.on("inputText", (data) => {
-        EditorFeature.onInputText.setPayload(data);
+      socket.on(AppConstant.websocketEvent.CHANGE_LANGUAGE, (payload: ChangeLanguageResponse) => {
+        console.log(payload);
+        dispatch(setLanguage(payload));
       });
-      socket.on("changeLanguage", EditorFeature.onChangeLanguage.setLanguage);
-      socket.on("search", onResponseData);
+      socket.on(AppConstant.websocketEvent.SEARCH, onResponseData);
     }
 
-    function onResponseData(res: string) {
-      const parsedPayload: ParsedSearchPayload = JSON.parse(res);
-      if(parsedPayload.code === 404) {
-        alert("404 Not Found");
+    function onResponseData(res: SearchResponse) {
+      if(res.code === 404) {
+        alert(res.message);
       } else {
-        const byteArray = Uint8Array.from(atob(parsedPayload.data), c => c.charCodeAt(0));
-        const blob = new Blob([byteArray], {type: "image/png"});
-        createImageBitmap(blob).then((bitMap) => {
-          SharingArea.setBitmap(bitMap);
-          SharingArea.setIsPending(false);
-        })
+        dispatch(setBinary(res.binary));
       }
     }
 
     function onDisconnect() {
       setIsConnected(false);
-      setTransport("N/A");
     }
 
     socket.on("connect", onConnect);
@@ -67,10 +55,4 @@ export const WebSocketProvider = ({children}: {children: ReactNode}) => {
   return <WsContext.Provider value={{socket}}>{children}</WsContext.Provider>;
 }
 
-export function useWs() {
-  const context = useContext(WsContext);
-  if (!context) {
-    throw new Error("useWs는 반드시 wsContext 하위에서 사용되어야 합니다.");
-  }
-  return context;
-}
+
