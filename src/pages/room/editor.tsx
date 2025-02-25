@@ -1,48 +1,38 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Editor from "@monaco-editor/react";
-import { ReactNode, useEffect, useState } from "react";
-import { useWs } from "@/provider/websocket-provider";
-import { changeLanguageMessage, inputTextMessage } from "@/lib/ws-frame-generator";
-import { ChangeLanguagePayload, InputTextPayload, DirectionType, Language, LanguageType } from "shared-coding-gather";
-import { useEditorFeature } from "@/provider/editor-provider";
-import a from "@/sources.json";
+import { ReactNode } from "react";
+import { ChangeLanguagePayload, DirectionType, LanguageType, AppConstant, InputTextPayload } from "shared-coding-gather";
+import { useEditorsSelector } from "@/hooks/use-editors";
+import { useWs } from "@/hooks/use-websocket";
 
 export default function TextEditor({direction}: {direction: DirectionType}) {
-  const editorFeature = useEditorFeature();
-  const [language, setLanguage] = useState<LanguageType | null>(null);
-  const lowerCaseLanguage = language?.toLowerCase().replace(/\s/g, "");
+  const editorsSelector = useEditorsSelector();
+  const text = direction === AppConstant.direction.TOP ? editorsSelector.topEditor.getText() : editorsSelector.bottomEditor.getText();
+  const language = direction === AppConstant.direction.TOP ? editorsSelector.topEditor.getLanguage() : editorsSelector.bottomEditor.getLanguage();
+  const lowerCaseLanguage = language.toLowerCase().replace(/\s/g, "");
   const ws = useWs();
-  const [text, setText] = useState("");
   /**
    * TLanguageType 설정 바꾸면 다른 유저들에게도 공유
    */
   const changeLanguage = (language: LanguageType) => {
-    setLanguage(language);
-    ws.socket.emit("changeLanguage", changeLanguageMessage({ language, direction }));
+    let data: ChangeLanguagePayload = {
+      direction,
+      language
+    }
+    ws.socket.emit(AppConstant.websocketEvent.CHANGE_LANGUAGE, data);
   };
   
   /**
    * 에디터에 글 입력할 때마다 다른 유저들에게 공유
    */
-  const syncEditor = (text?: string) => {
+  const inputText = (text?: string) => {
     if(!text) text = "";
-    setText(text);
-    ws.socket.emit("inputText", text);
-  };
-
-  /**
-   * 다른 유저가 입력한 내용을 받아서 에디터에 반영
-   */
-  useEffect(() => {
-    if(editorFeature.onInputText.payload === "") return;
-    const payload: InputTextPayload = editorFeature.onInputText.payload;
-    if(parsedPayload) {
-      if(parsedPayload.direction === direction) {
-        setText(parsedPayload.text);
-      }
+    let data: InputTextPayload = {
+      text,
+      direction
     }
-  }, [editorFeature.onInputText.payload]);
-
+    ws.socket.emit(AppConstant.websocketEvent.INPUT_TEXT, data);
+  };
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -50,10 +40,10 @@ export default function TextEditor({direction}: {direction: DirectionType}) {
         <LanguageMenu>
           <DropdownMenu>
             <DropdownMenuTrigger className="h-full outline-none">
-              <MenuTrigger>{language? language : "Plain Text"}</MenuTrigger>
+              <MenuTrigger>{ language ? language : "Plain Text" }</MenuTrigger>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Language{a.ABC}</DropdownMenuLabel>
+              <DropdownMenuLabel>Language</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuRadioGroup onValueChange={(value: string) => changeLanguage(value as LanguageType)}>
               <DropdownMenuRadioItem value="Plain Text">Plain Text</DropdownMenuRadioItem>
@@ -70,7 +60,7 @@ export default function TextEditor({direction}: {direction: DirectionType}) {
         </LanguageMenu>
       </EditorToolbar>
       <Editor
-        onChange={syncEditor}
+        onChange={inputText}
         className="w-full h-full"
         height="100%"
         defaultLanguage="plaintext"
