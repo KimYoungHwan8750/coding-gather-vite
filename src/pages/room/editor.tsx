@@ -7,8 +7,8 @@ import { useWs } from "@/hooks/use-websocket";
 
 export default function TextEditor({direction}: {direction: DirectionType}) {
   const editorsSelector = useEditorsSelector();
-  const text = direction === AppConstant.direction.TOP ? editorsSelector.topEditor.getText() : editorsSelector.bottomEditor.getText();
-  const language = direction === AppConstant.direction.TOP ? editorsSelector.topEditor.getLanguage() : editorsSelector.bottomEditor.getLanguage();
+  const text = direction === AppConstant.direction.TOP ? editorsSelector.topEditorData.text : editorsSelector.bottomEditorData.text;
+  const language = direction === AppConstant.direction.TOP ? editorsSelector.topEditorData.language : editorsSelector.bottomEditorData.language;
   const lowerCaseLanguage = language.toLowerCase().replace(/\s/g, "");
   const ws = useWs();
   /**
