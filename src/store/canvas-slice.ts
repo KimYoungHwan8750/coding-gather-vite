@@ -24,9 +24,15 @@ const canvasSlice = createSlice({
     },
     setPending(state, action: PayloadAction<boolean>) {
       state.canvas = state.canvas.withPending(action.payload);
+    },
+    setBase64(state, action: PayloadAction<string>) {
+      state.canvas = state.canvas.withBase64Data(action.payload);
+    },
+    setBase64FromBinary(state, action: PayloadAction<Uint8Array>) {
+      state.canvas = state.canvas.withBase64Data(state.canvas.encodeBinaryToBase64(action.payload));
     }
   }
 })
 
-export const { setUrl, setBinary, setTools, setPending } = canvasSlice.actions;
+export const { setUrl, setBinary, setTools, setPending, setBase64, setBase64FromBinary } = canvasSlice.actions;
 export default canvasSlice.reducer;

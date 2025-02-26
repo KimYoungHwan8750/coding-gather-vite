@@ -1,4 +1,4 @@
-import { setBinary } from "@/store/canvas-slice";
+import { setBase64FromBinary, setBinary } from "@/store/canvas-slice";
 import { setLanguage, setText } from "@/store/editors-slice";
 import { useState, useEffect, ReactNode } from "react";
 import { useDispatch } from "react-redux";
@@ -36,7 +36,7 @@ export const WebSocketProvider = ({children}: {children: ReactNode}) => {
       if(res.code === 404) {
         alert(res.message);
       } else {
-        dispatch(setBinary(res.binary));
+        dispatch(setBase64FromBinary(res.binary));
       }
     }
 
