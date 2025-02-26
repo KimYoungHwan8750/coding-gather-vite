@@ -1,67 +1,76 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { ChatBubbleIcon, CursorArrowIcon, EraserIcon, HandIcon, MagnifyingGlassIcon, MoveIcon, Pencil1Icon, ReloadIcon, ResetIcon, ScissorsIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils";
-import { AppConstant } from "shared-coding-gather";
+import { AppConstant, SearchPayload } from "shared-coding-gather";
 import { useWs } from "@/hooks/use-websocket";
 import { useCanvasSelector } from "@/hooks/use-canvas";
-import { setBinary } from "@/store/canvas-slice";
+import { setPending, setUrl } from "@/store/canvas-slice";
 import { useDispatch } from "react-redux";
 
 export default function Canvas() {
   const nodeRef = useRef<HTMLCanvasElement>(null);
   const canvasSelector = useCanvasSelector();
   const dispatch = useDispatch();
+  const [imageBitmap, setImageBitmap] = useState<ImageBitmap | null>(null);
   useEffect(() => {
     const drawImage = async () => {
       const canvas = nodeRef.current;
-      if(canvas && canvasSelector.canvas.getBinary().length > 0) {
+      if(canvas && imageBitmap) {
         const ctx = canvas.getContext('2d');
-        const blob = new Blob([canvasSelector.canvas.getBinary()], {type: "image/png"});
-        const imageBitmap = await window.createImageBitmap(blob);
         canvas.width = imageBitmap.width;
         canvas.height = imageBitmap.height;
-        if(ctx) {
+          if(ctx) {
           ctx.drawImage(imageBitmap, 0, 0);
         }
-        imageBitmap.close();
-        dispatch(setBinary(Uint8Array.from([])));
       }
     }
+    dispatch(setPending(false));
     drawImage();
-  }, [])
+  }, [imageBitmap]);
 
   return (
     <div
       className="outline outline-1 w-full h-full flex flex-col overflow-y-auto"
     >
-      <SearchBarContainer/>
-      { canvasSelector.canvas.isPending() ? (
-        <div className="w-full h-full flex items-center justify-center">Loading...</div>
-      ) : (
-        <canvas ref={
-          useCallback((node: HTMLCanvasElement) => {
-            nodeRef.current = node;
-          }, [])
-        }></canvas>
-      )}
+      <SearchBarContainer setImageBitmap={setImageBitmap}/>
+      { canvasSelector.pending && <div className="w-full h-full flex items-center justify-center">Loading...</div> }
+        <canvas className={canvasSelector.pending ? "hidden" : ""}
+          ref={nodeRef}
+        ></canvas>
+      
     </div>
   )
 }
 
-
-function SearchBarContainer() {
-  const ws = useWs();
+type SearchBarContainerProps = {
+  setImageBitmap: (imageBitmap: ImageBitmap) => void
+}
+function SearchBarContainer(props: SearchBarContainerProps) {
   const canvasSelector = useCanvasSelector();
-  const getPage = async (url: string) => {
-    canvasSelector.canvas.setPending(true);
-    ws.socket.emit(AppConstant.websocketEvent.SEARCH, url);
+  const dispatch = useDispatch();
+  const fetchImage = async (url: string) => {
+    dispatch(setPending(true));
+    const domain = "http://localhost:3000/search";
+    const body: SearchPayload = {
+      url
+    };
+    const response = await fetch(domain, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    const blob = await response.arrayBuffer();
+    const imageBitmap = await window.createImageBitmap(new Blob([blob], {type: "image/png"}));
+    props.setImageBitmap(imageBitmap);
   }
   return (
     <div>
       <div className="w-full h-20 bg-indigo-200 shadow flex items-center p-5 gap-2">
         <SearchBar/>
         <MagnifyingGlassIcon
-          onClick={() => getPage(canvasSelector.canvas.getUrl())}
+          onClick={() => fetchImage(canvasSelector.url)}
           className="h-8 bg-white px-2 rounded-lg box-content cursor-pointer shadow-lg outline outline-1 outline-black/10 hover:outline-1 hover:outline hover:outline-black/20"
         />
       </div>
@@ -73,6 +82,7 @@ function SearchBarContainer() {
 function SearchBar() {
   const searchBarRef = useRef<HTMLTextAreaElement>(null);
   const canvasSelector = useCanvasSelector();
+  const dispatch = useDispatch();
   const ws = useWs();
   useEffect(() => {
     const searchBarNode = searchBarRef.current;
@@ -94,7 +104,7 @@ function SearchBar() {
       searchBarRef.current = node;
     }, [])}
     onChange={(evt) => {
-      canvasSelector.canvas.setUrl(evt.target.value);
+      dispatch(setUrl(evt.target.value));
     }}
       className="w-full h-8 shadow outline outline-1 outline-black/10 rounded-lg resize-none leading-8 px-2 focus:shadow-around"
     />
