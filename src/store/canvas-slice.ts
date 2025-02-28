@@ -22,8 +22,13 @@ const canvasSlice = createSlice({
     setPending(state, action: PayloadAction<boolean>) {
       state.pending = action.payload;
     },
+    setDataFromCanvasData(state, action: PayloadAction<CanvasData>) {
+      state.url = action.payload.url;
+      state.tool = action.payload.tool;
+      state.pending = action.payload.pending;
+    }
   }
 })
 
-export const { setUrl, setTools, setPending } = canvasSlice.actions;
+export const { setUrl, setTools, setPending, setDataFromCanvasData } = canvasSlice.actions;
 export default canvasSlice.reducer;
