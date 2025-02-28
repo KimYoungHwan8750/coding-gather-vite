@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import "./App.css"
-import Canvas from "./pages/room/canvas";
-import TextEditor from "./pages/room/editor";
+import Canvas from "./pages/canvas";
+import TextEditor from "./pages/editor";
 import { WebSocketProvider } from "./provider/websocket-provider";
 import { Provider } from 'react-redux'
 import { store } from "./store/store";
