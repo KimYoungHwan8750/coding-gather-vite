@@ -1,26 +1,43 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react"
-import { ChatBubbleIcon, CursorArrowIcon, EraserIcon, HandIcon, MagnifyingGlassIcon, MoveIcon, Pencil1Icon, ReloadIcon, ResetIcon, ScissorsIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons"
+import { ChatBubbleIcon, EraserIcon, HandIcon, MagnifyingGlassIcon, Pencil1Icon, ReloadIcon, ResetIcon, ScissorsIcon, ZoomInIcon, ZoomOutIcon } from "@radix-ui/react-icons"
 import { cn } from "@/lib/utils";
 import { AppConstant, SearchPayload } from "shared-coding-gather";
 import { useWs } from "@/hooks/use-websocket";
-import { useCanvasSelector } from "@/hooks/use-canvas";
-import { setPending, setUrl } from "@/store/canvas-slice";
-import { useDispatch } from "react-redux";
+import { canvasSelector, setPending, setTools, setUrl } from "@/store/canvas-slice";
+import { useDispatch, useSelector } from "react-redux";
+import { CanvasLogic } from "@/lib/canvas-logic";
+import { CanvasController } from "@/lib/canvas-controller";
 
 export default function Canvas() {
-  const nodeRef = useRef<HTMLCanvasElement>(null);
-  const canvasSelector = useCanvasSelector();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasData = useSelector(canvasSelector)
   const dispatch = useDispatch();
   const [imageBitmap, setImageBitmap] = useState<ImageBitmap | null>(null);
+  const canvasController = useRef<CanvasController|null>(null);
+  canvasController.current?.setState(canvasData.canvasData.tool);
+  console.log(canvasData.canvasData.tool);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const drawingCanvas = drawingCanvasRef.current;
+    const container = containerRef.current;
+    if(canvas && drawingCanvas && container && imageBitmap) {
+      canvasController.current = new CanvasController(container, canvas, drawingCanvas, imageBitmap);
+    }
+  }, [imageBitmap])
+
   useEffect(() => {
     const drawImage = async () => {
-      const canvas = nodeRef.current;
+      const canvas = canvasRef.current;
       if(canvas && imageBitmap) {
         const ctx = canvas.getContext('2d');
-        canvas.width = imageBitmap.width;
-        canvas.height = imageBitmap.height;
+        const scale = 1.5;
+        canvas.width = imageBitmap.width * scale;
+        canvas.height = imageBitmap.height * scale;
           if(ctx) {
-          ctx.drawImage(imageBitmap, 0, 0);
+          ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width * scale, imageBitmap.height * scale);
         }
       }
     }
@@ -28,16 +45,35 @@ export default function Canvas() {
     drawImage();
   }, [imageBitmap]);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      const imageBitmap = await CanvasLogic.mockFetchData();
+      setImageBitmap(imageBitmap);
+    }
+    fetchData();
+  }, [])
+
   return (
     <div
-      className="outline outline-1 w-full h-full flex flex-col overflow-y-auto"
+      className="flex flex-col w-1/2 h-full"
     >
       <SearchBarContainer setImageBitmap={setImageBitmap}/>
-      { canvasSelector.pending && <div className="w-full h-full flex items-center justify-center">Loading...</div> }
-        <canvas className={canvasSelector.pending ? "hidden" : ""}
-          ref={nodeRef}
-        ></canvas>
-      
+      { canvasData.canvasData.pending && <div className="w-full h-full flex items-center justify-center">Loading...</div> }
+      <div
+        ref={containerRef}
+        className={"w-full h-full relative overflow-auto"}
+      >
+        <canvas
+          className={cn("", canvasData.canvasData.pending ? "hidden" : "")}
+          ref={canvasRef}
+        >
+        </canvas>
+        <canvas
+          ref={drawingCanvasRef}
+          className={"absolute top-0 left-0"}
+        >
+        </canvas>
+      </div>
     </div>
   )
 }
@@ -46,7 +82,7 @@ type SearchBarContainerProps = {
   setImageBitmap: (imageBitmap: ImageBitmap) => void
 }
 function SearchBarContainer(props: SearchBarContainerProps) {
-  const canvasSelector = useCanvasSelector();
+  const canvasData = useSelector(canvasSelector);
   const dispatch = useDispatch();
   const fetchImage = async (url: string) => {
     dispatch(setPending(true));
@@ -66,11 +102,11 @@ function SearchBarContainer(props: SearchBarContainerProps) {
     props.setImageBitmap(imageBitmap);
   }
   return (
-    <div>
+    <div className="sticky top-0 w-full">
       <div className="w-full h-20 bg-indigo-200 shadow flex items-center p-5 gap-2">
         <SearchBar/>
         <MagnifyingGlassIcon
-          onClick={() => fetchImage(canvasSelector.url)}
+          onClick={() => fetchImage(canvasData.canvasData.url)}
           className="h-8 bg-white px-2 rounded-lg box-content cursor-pointer shadow-lg outline outline-1 outline-black/10 hover:outline-1 hover:outline hover:outline-black/20"
         />
       </div>
@@ -81,7 +117,7 @@ function SearchBarContainer(props: SearchBarContainerProps) {
 
 function SearchBar() {
   const searchBarRef = useRef<HTMLTextAreaElement>(null);
-  const canvasSelector = useCanvasSelector();
+  const canvasData = useSelector(canvasSelector);
   const dispatch = useDispatch();
   const ws = useWs();
   useEffect(() => {
@@ -113,20 +149,20 @@ function SearchBar() {
 
 function CanvasToolbar() {
   const [selected, setSelected] = useState(1);
+  const dispatch = useDispatch();
   const tools = [
-      <CanvasTool key={"cursor"} icon={<CursorArrowIcon/>} action={() => {}}/>,
-      <CanvasTool key={"hand"} icon={<HandIcon/>} action={() => {}}/>,
-      <CanvasTool key={"pencil"} icon={<Pencil1Icon/>} action={() => {}}/>,
-      <CanvasTool key={"eraser"} icon={<EraserIcon/>} action={() => {}}/>,
-      <CanvasTool key={"zoomIn"} icon={<ZoomInIcon/>} action={() => {}}/>,
-      <CanvasTool key={"zoomOut"} icon={<ZoomOutIcon/>} action={() => {}}/>,
-      <CanvasTool key={"scissors"} icon={<ScissorsIcon/>} action={() => {}}/>,
-      <CanvasTool key={"reload"} icon={<ReloadIcon/>} action={() => {}}/>,
-      <CanvasTool key={"popStack"} icon={<ResetIcon/>} action={() => {}}/>,
-      <CanvasTool key={"chatBubble"} icon={<ChatBubbleIcon/>} action={() => {}}/>,
+      <CanvasTool key={"hand"} icon={<HandIcon/>} action={() => dispatch(setTools("hand"))}/>,
+      <CanvasTool key={"pencil"} icon={<Pencil1Icon/>} action={() => dispatch(setTools("pencil"))}/>,
+      <CanvasTool key={"eraser"} icon={<EraserIcon/>} action={() => dispatch(setTools("eraser"))}/>,
+      <CanvasTool key={"zoomIn"} icon={<ZoomInIcon/>} action={() => dispatch(setTools("zoomIn"))}/>,
+      <CanvasTool key={"zoomOut"} icon={<ZoomOutIcon/>} action={() => dispatch(setTools("zoomOut"))}/>,
+      <CanvasTool key={"scissors"} icon={<ScissorsIcon/>} action={() => dispatch(setTools("scissors"))}/>,
+      <CanvasTool key={"reload"} icon={<ReloadIcon/>} action={() => dispatch(setTools("reload"))}/>,
+      <CanvasTool key={"popStack"} icon={<ResetIcon/>} action={() => dispatch(setTools("popStack"))}/>,
+      <CanvasTool key={"chatBubble"} icon={<ChatBubbleIcon/>} action={() => dispatch(setTools("chatBubble"))}/>,
   ]
   return (
-    <div className="w-full h-12 flex items-center gap-5 px-2 border-b-2 justify-center">
+    <div className="w-full flex flex-wrap items-center gap-3 px-2 border-b-2 justify-center bg-white p-2">
       {tools}
     </div>
   )
@@ -155,5 +191,12 @@ function CanvasTool({icon, action, selected}: CanvasToolProps) {
         </div>
     </div>
   )
+}
 
+function DrawingCanvas() {
+  return (
+    <canvas
+      className="absolute w-full h-full"
+    ></canvas>
+  )
 }
