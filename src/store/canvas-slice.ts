@@ -1,12 +1,17 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { CanvasData, ToolsType } from "shared-coding-gather";
+import { RootState } from "./store";
 
 
-
-const initialState: CanvasData = {
-  url: "",
-  tool: "cursor",
-  pending: false
+type InitialStateType = {
+  canvasData: CanvasData
+}
+const initialState: InitialStateType = {
+  canvasData: {
+    url: "",
+    tool: "hand",
+    pending: false
+  },
 }
 
 const canvasSlice = createSlice({
@@ -14,21 +19,22 @@ const canvasSlice = createSlice({
   initialState,
   reducers: {
     setUrl(state, action: PayloadAction<string>) {
-      state.url = action.payload;
+      state.canvasData.url = action.payload;
     },
     setTools(state, action: PayloadAction<ToolsType>) {
-      state.tool = action.payload;
+      state.canvasData.tool = action.payload;
     },
     setPending(state, action: PayloadAction<boolean>) {
-      state.pending = action.payload;
+      state.canvasData.pending = action.payload;
     },
     setDataFromCanvasData(state, action: PayloadAction<CanvasData>) {
-      state.url = action.payload.url;
-      state.tool = action.payload.tool;
-      state.pending = action.payload.pending;
+      state.canvasData.url = action.payload.url;
+      state.canvasData.tool = action.payload.tool;
+      state.canvasData.pending = action.payload.pending;
     }
   }
 })
 
 export const { setUrl, setTools, setPending, setDataFromCanvasData } = canvasSlice.actions;
 export default canvasSlice.reducer;
+export const canvasSelector = (state: RootState) => state.canvas;
