@@ -92,7 +92,7 @@ export default function TextEditor({direction}: {direction: DirectionType}) {
   );
 }
 
-function EditorToolbar({children}: {children: React.ReactNode}) {
+function EditorToolbar({children}: {children: ReactNode}) {
   return (
     <div className="w-full min-h-12 flex items-center gap-2 box-content">
       {children}
