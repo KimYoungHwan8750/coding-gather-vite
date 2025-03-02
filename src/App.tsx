@@ -32,7 +32,7 @@ function AppContainer({children}: {children: ReactNode}) {
 
 function EditorArea({children}: {children: ReactNode}) {
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-1/2 h-full flex flex-col">
       {children}
     </div>
   )
