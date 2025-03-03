@@ -1,10 +1,14 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { CanvasData, ToolsType } from "shared-coding-gather";
+import { AppConstant, CanvasData, ToolsType } from "shared-coding-gather";
 import { RootState } from "./store";
+import { ZoomLevelType } from "shared-coding-gather";
 
 
 type InitialStateType = {
   canvasData: CanvasData
+  zoomLevel: ZoomLevelType
+  strokeWidth: number
+  strokeColor: string
 }
 const initialState: InitialStateType = {
   canvasData: {
@@ -12,6 +16,9 @@ const initialState: InitialStateType = {
     tool: "hand",
     pending: false
   },
+  zoomLevel: 0,
+  strokeWidth: 4,
+  strokeColor: "black"
 }
 
 const canvasSlice = createSlice({
@@ -31,10 +38,24 @@ const canvasSlice = createSlice({
       state.canvasData.url = action.payload.url;
       state.canvasData.tool = action.payload.tool;
       state.canvasData.pending = action.payload.pending;
+    },
+    setStrokeWidth(state, action: PayloadAction<number>) {
+      state.strokeWidth = action.payload;
+    },
+    setStrokeColor(state, action: PayloadAction<string>) {
+      state.strokeColor = action.payload;
+    },
+    zoomIn: (state) => {
+      if(state.zoomLevel >= AppConstant.maxZoomLevel) return;
+      state.zoomLevel += 1;
+    },
+    zoomOut: (state) => {
+      if(state.zoomLevel <= AppConstant.minZoomLevel) return;
+      state.zoomLevel -= 1;
     }
   }
 })
 
-export const { setUrl, setTools, setPending, setDataFromCanvasData } = canvasSlice.actions;
+export const { setUrl, setTools, setPending, setDataFromCanvasData, setStrokeWidth, setStrokeColor, zoomIn, zoomOut } = canvasSlice.actions;
 export default canvasSlice.reducer;
 export const canvasSelector = (state: RootState) => state.canvas;
