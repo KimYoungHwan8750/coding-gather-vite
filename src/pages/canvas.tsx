@@ -3,10 +3,11 @@ import { ChatBubbleIcon, EraserIcon, HandIcon, MagnifyingGlassIcon, Pencil1Icon,
 import { cn } from "@/lib/utils";
 import { AppConstant, SearchPayload } from "shared-coding-gather";
 import { useWs } from "@/hooks/use-websocket";
-import { canvasSelector, setPending, setTools, setUrl } from "@/store/canvas-slice";
+import { canvasSelector, setPending, setStrokeColor, setStrokeWidth, setTools, setUrl, zoomIn, zoomOut } from "@/store/canvas-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { CanvasLogic } from "@/lib/canvas-logic";
 import { CanvasController } from "@/lib/canvas-controller";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,15 +26,20 @@ export default function Canvas() {
     const container = containerRef.current;
     if(canvas && drawingCanvas && container && imageBitmap) {
       canvasController.current = new CanvasController(container, canvas, drawingCanvas, imageBitmap);
+      canvasController.current.zoom(canvasData.zoomLevel);
     }
-  }, [imageBitmap])
+    return () => {
+      canvasController.current?.cleanup();
+    }
+  }, [imageBitmap, canvasData.zoomLevel])
 
   useEffect(() => {
     const drawImage = async () => {
       const canvas = canvasRef.current;
+      console.log("/imagebitmap")
       if(canvas && imageBitmap) {
         const ctx = canvas.getContext('2d');
-        const scale = 1.5;
+        const scale = 1;
         canvas.width = imageBitmap.width * scale;
         canvas.height = imageBitmap.height * scale;
           if(ctx) {
@@ -44,6 +50,15 @@ export default function Canvas() {
     dispatch(setPending(false));
     drawImage();
   }, [imageBitmap]);
+
+  useEffect(() => {
+    canvasController.current?.setStrokeWidth(canvasData.strokeWidth)
+
+  }, [canvasData.strokeWidth])
+
+  useEffect(() => {
+    canvasController.current?.setStrokeColor(canvasData.strokeColor);
+  }, [canvasData.strokeColor])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,7 +76,7 @@ export default function Canvas() {
       { canvasData.canvasData.pending && <div className="w-full h-full flex items-center justify-center">Loading...</div> }
       <div
         ref={containerRef}
-        className={"w-full h-full relative overflow-auto"}
+        className={"w-full h-full relative overflow-auto bg-black/20"}
       >
         <canvas
           className={cn("", canvasData.canvasData.pending ? "hidden" : "")}
@@ -107,7 +122,7 @@ function SearchBarContainer(props: SearchBarContainerProps) {
         <SearchBar/>
         <MagnifyingGlassIcon
           onClick={() => fetchImage(canvasData.canvasData.url)}
-          className="h-8 bg-white px-2 rounded-lg box-content cursor-pointer shadow-lg outline outline-1 outline-black/10 hover:outline-1 hover:outline hover:outline-black/20"
+          className="h-8 bg-white px-2 rounded-full box-content cursor-pointer shadow-lg outline outline-1 outline-black/10 hover:outline-1 hover:outline hover:outline-black/20"
         />
       </div>
       <CanvasToolbar></CanvasToolbar>
@@ -142,23 +157,23 @@ function SearchBar() {
     onChange={(evt) => {
       dispatch(setUrl(evt.target.value));
     }}
-      className="w-full h-8 shadow outline outline-1 outline-black/10 rounded-lg resize-none leading-8 px-2 focus:shadow-around"
+      className="text-sm bg-white w-full h-8 shadow outline outline-1 outline-black/10 rounded-full resize-none leading-8 px-4 focus:shadow-around"
     />
   )
 }
 
 function CanvasToolbar() {
-  const [selected, setSelected] = useState(1);
   const dispatch = useDispatch();
+
   const tools = [
       <CanvasTool key={"hand"} icon={<HandIcon/>} action={() => dispatch(setTools("hand"))}/>,
-      <CanvasTool key={"pencil"} icon={<Pencil1Icon/>} action={() => dispatch(setTools("pencil"))}/>,
+      <CanvasTool key={"pencil"} icon={<PencilPopover/>} action={() => dispatch(setTools("pencil"))}/>,
       <CanvasTool key={"eraser"} icon={<EraserIcon/>} action={() => dispatch(setTools("eraser"))}/>,
-      <CanvasTool key={"zoomIn"} icon={<ZoomInIcon/>} action={() => dispatch(setTools("zoomIn"))}/>,
-      <CanvasTool key={"zoomOut"} icon={<ZoomOutIcon/>} action={() => dispatch(setTools("zoomOut"))}/>,
-      <CanvasTool key={"scissors"} icon={<ScissorsIcon/>} action={() => dispatch(setTools("scissors"))}/>,
+      <CanvasTool key={"zoomIn"} icon={<ZoomInIcon/>} action={() => dispatch(zoomIn())}/>,
+      <CanvasTool key={"zoomOut"} icon={<ZoomOutIcon/>} action={() => dispatch(zoomOut())}/>,
+      // <CanvasTool key={"scissors"} icon={<ScissorsIcon/>} action={() => dispatch(setTools("scissors"))}/>,
       <CanvasTool key={"reload"} icon={<ReloadIcon/>} action={() => dispatch(setTools("reload"))}/>,
-      <CanvasTool key={"popStack"} icon={<ResetIcon/>} action={() => dispatch(setTools("popStack"))}/>,
+      // <CanvasTool key={"popStack"} icon={<ResetIcon/>} action={() => dispatch(setTools("popStack"))}/>,
       <CanvasTool key={"chatBubble"} icon={<ChatBubbleIcon/>} action={() => dispatch(setTools("chatBubble"))}/>,
   ]
   return (
@@ -168,6 +183,56 @@ function CanvasToolbar() {
   )
 }
 
+function PencilPopover() {
+  const dispatch = useDispatch();
+  const canvasData = useSelector(canvasSelector);
+  return (
+    <Popover onOpenChange={(open) => console.log(open)}>
+      <PopoverTrigger>
+        <Pencil1Icon/>
+      </PopoverTrigger>
+      <PopoverContent>
+        <div>
+          <PencilPopoverRow>
+            <label htmlFor="stroke-width">width</label>
+            <input
+              id="stroke-width"
+              type="range"
+              min={1}
+              max={24}
+              value={canvasData.strokeWidth}
+              onChange={(e) => dispatch(setStrokeWidth(e.target.valueAsNumber))}
+            >
+            </input>
+            <span>{canvasData.strokeWidth}</span>
+          </PencilPopoverRow>
+          <PencilPopoverRow>
+            <label htmlFor="stroke-color">color</label>
+            <input
+              className="rounded-4xl"
+              id="stroke-color"
+              type="color"
+              value={canvasData.strokeColor}
+              onChange={(e) => {
+                dispatch(setStrokeColor(e.target.value));
+              }}
+            >
+            </input>
+          </PencilPopoverRow>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function PencilPopoverRow({children}: {children: ReactNode}) {
+  return (
+    <div className="flex items-center gap-2">
+      {children}
+    </div>
+  )
+
+}
 
 type CanvasToolProps = {
   icon: ReactNode
@@ -190,13 +255,5 @@ function CanvasTool({icon, action, selected}: CanvasToolProps) {
           {icon}
         </div>
     </div>
-  )
-}
-
-function DrawingCanvas() {
-  return (
-    <canvas
-      className="absolute w-full h-full"
-    ></canvas>
   )
 }
