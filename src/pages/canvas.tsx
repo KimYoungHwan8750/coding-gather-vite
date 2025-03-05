@@ -18,16 +18,19 @@ export default function Canvas() {
   const [imageBitmap, setImageBitmap] = useState<ImageBitmap | null>(null);
   const canvasController = useRef<CanvasController|null>(null);
   canvasController.current?.setState(canvasData.canvasData.tool);
-  console.log(canvasData.canvasData.tool);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const drawingCanvas = drawingCanvasRef.current;
-    const container = containerRef.current;
-    if(canvas && drawingCanvas && container && imageBitmap) {
-      canvasController.current = new CanvasController(container, canvas, drawingCanvas, imageBitmap);
-      canvasController.current.zoom(canvasData.zoomLevel);
+    const reDraw = async () => {
+      const canvas = canvasRef.current;
+      const drawingCanvas = drawingCanvasRef.current;
+      const container = containerRef.current;
+      if(canvas && drawingCanvas && container && imageBitmap) {
+        canvasController.current = new CanvasController(container, canvas, drawingCanvas, imageBitmap);
+        canvasController.current.zoom(canvasData.zoomLevel);
+      }
     }
+    reDraw();
+
     return () => {
       canvasController.current?.cleanup();
     }
@@ -36,12 +39,15 @@ export default function Canvas() {
   useEffect(() => {
     const drawImage = async () => {
       const canvas = canvasRef.current;
+      const drawingCanvas = drawingCanvasRef.current;
       console.log("/imagebitmap")
-      if(canvas && imageBitmap) {
+      if(canvas && drawingCanvas && imageBitmap) {
         const ctx = canvas.getContext('2d');
         const scale = 1;
         canvas.width = imageBitmap.width * scale;
         canvas.height = imageBitmap.height * scale;
+        drawingCanvas.width = imageBitmap.width * scale;
+        drawingCanvas.height = imageBitmap.height * scale;
           if(ctx) {
           ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width * scale, imageBitmap.height * scale);
         }
@@ -65,7 +71,6 @@ export default function Canvas() {
       const imageBitmap = await CanvasLogic.mockFetchData();
       setImageBitmap(imageBitmap);
     }
-    fetchData();
   }, [])
 
   return (
@@ -76,7 +81,7 @@ export default function Canvas() {
       { canvasData.canvasData.pending && <div className="w-full h-full flex items-center justify-center">Loading...</div> }
       <div
         ref={containerRef}
-        className={"w-full h-full relative overflow-auto bg-black/20"}
+        className={"w-full h-full relative overflow-auto"}
       >
         <canvas
           className={cn("", canvasData.canvasData.pending ? "hidden" : "")}
@@ -132,7 +137,6 @@ function SearchBarContainer(props: SearchBarContainerProps) {
 
 function SearchBar() {
   const searchBarRef = useRef<HTMLTextAreaElement>(null);
-  const canvasData = useSelector(canvasSelector);
   const dispatch = useDispatch();
   const ws = useWs();
   useEffect(() => {
