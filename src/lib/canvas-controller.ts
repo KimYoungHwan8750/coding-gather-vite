@@ -30,7 +30,6 @@ export class CanvasController {
   tools: ToolsType = "hand";
   strokeWidth: number = 4;
   strokeColor: string = "white";
-  imageData: ImageData | undefined = undefined;
 
   mousedownCallback: (evt: MouseEvent) => void = () => {};
   mousemoveCallback: (evt: MouseEvent) => void = () => {};
@@ -54,8 +53,6 @@ export class CanvasController {
   init() {
     this.ctx = this.canvas.getContext("2d");
     this.drawingCtx = this.drawingCanvas.getContext("2d");
-    const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
     
     if (!this.ctx) {
       throw new Error("2d context가 지원되지 않습니다.");
@@ -63,14 +60,6 @@ export class CanvasController {
     if (!this.drawingCtx) {
       throw new Error("그리기 2d context가 지원되지 않습니다.");
     }
-
-    if(!tempCtx) return;
-    tempCanvas.width = this.canvas.width;
-    tempCanvas.height = this.canvas.height;
-    tempCtx.drawImage(this.drawingCanvas, 0, 0);
-    this.drawingCanvas.width = this.canvas.width
-    this.drawingCanvas.height = this.canvas.height
-    this.drawingCtx?.drawImage(tempCanvas, 0, 0, this.canvas.width, this.canvas.height);
     
     this.container.addEventListener("pointerdown", this.mousedownCallback);
     this.container.addEventListener("pointermove", this.mousemoveCallback);
@@ -133,7 +122,7 @@ export class CanvasController {
           });
           this.setCursor("grabbing");
         }
-        // 조건문 안에 들어가게 되면 최근 마우스 위치 동기화가 안 돼서 밖으로 빼야함함
+        // 조건문 안에 들어가게 되면 최근 마우스 위치 동기화가 안 돼서 밖으로 빼야함
         this.canvasLogic.handMove(evt.clientX, evt.clientY);
   });
 
@@ -143,6 +132,7 @@ export class CanvasController {
     });
 
   }
+
 
   pencil() {
     this.setDrawingPointer({size: this.strokeWidth, color: "white"})
@@ -209,20 +199,21 @@ export class CanvasController {
     this.drawingCtx?.fill();
   }
 
-  zoom(zoomLevel: ZoomLevelType) {
-    console.log(zoomLevel)
+  async zoom(zoomLevel: ZoomLevelType) {
     if(zoomLevel > AppConstant.maxZoomLevel) return;
     if(zoomLevel < AppConstant.minZoomLevel) return;
     // zoomLevel당 20%씩 확대
-    const zoomRatio = 0.2;
-
+    const zoomRatio = zoomLevel > 0 ? 0.1 : 0.05;
+    const drawingImageBitmap = await createImageBitmap(this.drawingCanvas);
     let scale = 1 + zoomLevel * zoomRatio;
-    this.ctx?.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.canvas.width = this.imageBitmap.width * scale;
     this.canvas.height = this.imageBitmap.height * scale;
-    // this.drawingCanvas.width = this.imageBitmap.width * scale;
-    // this.drawingCanvas.height = this.imageBitmap.height * scale;
+    this.drawingCanvas.width = this.imageBitmap.width * scale;
+    this.drawingCanvas.height = this.imageBitmap.height * scale;
+    this.ctx?.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx?.drawImage(this.imageBitmap, 0, 0, this.imageBitmap.width * scale, this.imageBitmap.height * scale);
+    this.drawingCtx?.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+    this.drawingCtx?.drawImage(drawingImageBitmap, 0, 0, this.imageBitmap.width * scale, this.imageBitmap.height * scale);
     
   }
 
